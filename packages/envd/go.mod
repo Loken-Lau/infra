@@ -1,6 +1,6 @@
 module github.com/e2b-dev/infra/packages/envd
 
-go 1.25.4
+go 1.25
 
 replace github.com/ugorji/go v1.1.4 => github.com/ugorji/go/codec v1.3.1
 

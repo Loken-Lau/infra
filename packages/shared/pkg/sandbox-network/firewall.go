@@ -12,13 +12,13 @@ import (
 const (
 	AllInternetTrafficCIDR = "0.0.0.0/0"
 
-	DefaultNameserver = "8.8.8.8"
+	DefaultNameserver = "10.1.2.1"
 )
 
 var DeniedSandboxCIDRs = []string{
 	// IPv4 private/local ranges
-	"10.0.0.0/8",
-	"127.0.0.0/8",
+	// "10.0.0.0/8",
+	// "127.0.0.0/8",
 	"169.254.0.0/16",
 	"172.16.0.0/12",
 	"192.168.0.0/16",
