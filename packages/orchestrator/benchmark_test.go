@@ -7,10 +7,12 @@ package main
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"testing"
 	"time"
 
@@ -54,14 +56,15 @@ func BenchmarkBaseImageLaunch(b *testing.B) {
 
 	// test configuration
 	const (
-		testType        = onlyStart
+		testType        = startPauseResume
 		baseImage       = "e2bdev/base"
-		kernelVersion   = "vmlinux-6.1.158"
-		fcVersion       = featureflags.DefaultFirecrackerVersion
+		kernelVersion   = "vmlinux-6.1.102"
+		fcVersion       = "v1.12.1_717921c"
 		templateID      = "fcb33d09-3141-42c4-8d3b-c2df411681db"
 		buildID         = "ba6aae36-74f7-487a-b6f7-74fd7c94e479"
 		useHugePages    = false
 		templateVersion = "v2.0.0"
+		rootfsPath      = "/home/ubuntu/ljh/testspace/infra/packages/rootfs/rootfs.ext4"
 	)
 
 	sbxNetwork := &orchestrator.SandboxNetworkConfig{}
@@ -109,7 +112,7 @@ func BenchmarkBaseImageLaunch(b *testing.B) {
 	b.Setenv("FIRECRACKER_VERSIONS_DIR", abs(filepath.Join("..", "fc-versions", "builds")))
 	b.Setenv("HOST_ENVD_PATH", abs(filepath.Join("..", "envd", "bin", "envd")))
 	b.Setenv("HOST_KERNELS_DIR", abs(kernelsDir))
-	b.Setenv("LOCAL_TEMPLATE_STORAGE_BASE_PATH", abs(filepath.Join(persistenceDir, "templates")))
+	b.Setenv("LOCAL_TEMPLATE_STORAGE_BASE_PATH", abs(filepath.Dir(rootfsPath)))
 	b.Setenv("ORCHESTRATOR_BASE_PATH", tempDir)
 	b.Setenv("SANDBOX_DIR", abs(sandboxDir))
 	b.Setenv("SNAPSHOT_CACHE_DIR", abs(filepath.Join(tempDir, "snapshot-cache")))
@@ -280,6 +283,7 @@ func BenchmarkBaseImageLaunch(b *testing.B) {
 	)
 
 	buildPath := filepath.Join(os.Getenv("LOCAL_TEMPLATE_STORAGE_BASE_PATH"), buildID, "rootfs.ext4")
+	ensureRootfsAtBuildPath(b, rootfsPath, buildPath)
 	if _, err := os.Stat(buildPath); os.IsNotExist(err) {
 		// build template
 		force := true
@@ -321,8 +325,11 @@ func BenchmarkBaseImageLaunch(b *testing.B) {
 		runtime:        runtime,
 	}
 
+	stats := newBenchStats(testType)
+	defer stats.Report(b)
+
 	for b.Loop() {
-		tc.testOneItem(b, buildID, kernelVersion, fcVersion)
+		tc.testOneItem(b, buildID, kernelVersion, fcVersion, stats)
 	}
 }
 
@@ -351,12 +358,15 @@ type testContainer struct {
 	runtime        sandbox.RuntimeMetadata
 }
 
-func (tc *testContainer) testOneItem(b *testing.B, buildID, kernelVersion, fcVersion string) {
+func (tc *testContainer) testOneItem(b *testing.B, buildID, kernelVersion, fcVersion string, stats *benchStats) {
 	b.Helper()
 
 	ctx, span := tracer.Start(b.Context(), "testOneItem")
 	defer span.End()
 
+	var totalMeasured time.Duration
+
+	startResumeAt := time.Now()
 	sbx, err := tc.sandboxFactory.ResumeSandbox(
 		ctx,
 		tc.tmpl,
@@ -367,13 +377,19 @@ func (tc *testContainer) testOneItem(b *testing.B, buildID, kernelVersion, fcVer
 		nil,
 	)
 	require.NoError(b, err)
+	resumeDur := time.Since(startResumeAt)
+	stats.AddResume(resumeDur)
+	totalMeasured += resumeDur
 
 	if tc.testType == onlyStart {
 		b.StopTimer()
+		closeAt := time.Now()
 		err = sbx.Close(ctx)
 		require.NoError(b, err)
+		stats.AddClose(time.Since(closeAt))
 		b.StartTimer()
 
+		stats.AddTotal(totalMeasured)
 		return
 	}
 
@@ -385,24 +401,42 @@ func (tc *testContainer) testOneItem(b *testing.B, buildID, kernelVersion, fcVer
 		KernelVersion:      kernelVersion,
 		FirecrackerVersion: fcVersion,
 	})
+	pauseAt := time.Now()
 	snap, err := sbx.Pause(ctx, templateMetadata)
 	require.NoError(b, err)
 	require.NotNil(b, snap)
+	pauseDur := time.Since(pauseAt)
+	stats.AddPause(pauseDur)
+	totalMeasured += pauseDur
+
+	stats.AddSnapshotSizes(snap)
 
 	if tc.testType == startAndPause {
 		b.StopTimer()
+		closeAt := time.Now()
 		err = sbx.Close(ctx)
 		require.NoError(b, err)
+		stats.AddClose(time.Since(closeAt))
 		b.StartTimer()
+
+		stats.AddTotal(totalMeasured)
 	}
 
 	// resume sandbox
+	resume2At := time.Now()
 	sbx, err = tc.sandboxFactory.ResumeSandbox(ctx, tc.tmpl, tc.sandboxConfig, tc.runtime, time.Now(), time.Now().Add(time.Second*15), nil)
 	require.NoError(b, err)
+	resume2Dur := time.Since(resume2At)
+	stats.AddResume2(resume2Dur)
+	totalMeasured += resume2Dur
 
 	// close sandbox
+	closeAt := time.Now()
 	err = sbx.Close(ctx)
 	require.NoError(b, err)
+	stats.AddClose(time.Since(closeAt))
+
+	stats.AddTotal(totalMeasured)
 }
 
 func downloadKernel(b *testing.B, filename, url string) {
@@ -431,4 +465,190 @@ func downloadKernel(b *testing.B, filename, url string) {
 
 	_, err = file.ReadFrom(response.Body)
 	require.NoError(b, err)
+}
+
+func ensureRootfsAtBuildPath(b *testing.B, rootfsPath, buildPath string) {
+	b.Helper()
+
+	if rootfsPath == "" || buildPath == "" {
+		return
+	}
+
+	if _, err := os.Stat(buildPath); err == nil {
+		return
+	}
+
+	if _, err := os.Stat(rootfsPath); os.IsNotExist(err) {
+		return
+	}
+
+	err := os.MkdirAll(filepath.Dir(buildPath), 0o755)
+	require.NoError(b, err)
+
+	if err := os.Symlink(rootfsPath, buildPath); err == nil {
+		return
+	}
+
+	src, err := os.Open(rootfsPath)
+	require.NoError(b, err)
+	defer src.Close()
+
+	dst, err := os.OpenFile(buildPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	require.NoError(b, err)
+	defer dst.Close()
+
+	_, err = io.Copy(dst, src)
+	require.NoError(b, err)
+}
+
+type durSummary struct {
+	Count int
+	Avg   time.Duration
+	P50   time.Duration
+	P95   time.Duration
+	Max   time.Duration
+	Sum   time.Duration
+}
+
+func summarizeDurations(durs []time.Duration) durSummary {
+	if len(durs) == 0 {
+		return durSummary{}
+	}
+
+	cp := make([]time.Duration, len(durs))
+	copy(cp, durs)
+	sort.Slice(cp, func(i, j int) bool { return cp[i] < cp[j] })
+
+	var sum time.Duration
+	for _, d := range cp {
+		sum += d
+	}
+
+	p50 := cp[(len(cp)-1)*50/100]
+	p95 := cp[(len(cp)-1)*95/100]
+
+	return durSummary{
+		Count: len(cp),
+		Avg:   sum / time.Duration(len(cp)),
+		P50:   p50,
+		P95:   p95,
+		Max:   cp[len(cp)-1],
+		Sum:   sum,
+	}
+}
+
+type benchStats struct {
+	testType testCycle
+
+	resume  []time.Duration
+	pause   []time.Duration
+	resume2 []time.Duration
+	close   []time.Duration
+	total   []time.Duration
+
+	snapfileBytes    []int64
+	memfileDiffBytes []int64
+	rootfsDiffBytes  []int64
+}
+
+func newBenchStats(testType testCycle) *benchStats {
+	return &benchStats{testType: testType}
+}
+
+func (s *benchStats) AddResume(d time.Duration)  { s.resume = append(s.resume, d) }
+func (s *benchStats) AddPause(d time.Duration)   { s.pause = append(s.pause, d) }
+func (s *benchStats) AddResume2(d time.Duration) { s.resume2 = append(s.resume2, d) }
+func (s *benchStats) AddClose(d time.Duration)   { s.close = append(s.close, d) }
+func (s *benchStats) AddTotal(d time.Duration)   { s.total = append(s.total, d) }
+
+func (s *benchStats) AddSnapshotSizes(snap *sandbox.Snapshot) {
+	if snap == nil {
+		return
+	}
+
+	if snap.Snapfile != nil {
+		if st, err := os.Stat(snap.Snapfile.Path()); err == nil {
+			s.snapfileBytes = append(s.snapfileBytes, st.Size())
+		}
+	}
+
+	// switch d := snap.MemfileDiff.(type) {
+	// if size, err := snap.MemfileDiff.FileSize(); err == nil{
+	// 	s.memfileDiffBytes = append(s.memfileDiffBytes, 0)
+	// }
+	// }
+
+	// switch d := snap.RootfsDiff.(type) {
+	// if size, err := snap.RootfsDiff.FileSize(); err == nil{
+	// 	s.rootfsDiffBytes = append(s.rootfsDiffBytes, 0)
+	// }
+	// }
+}
+
+func summarizeBytes(sizes []int64) (count int, avg int64, p50 int64, p95 int64, max int64) {
+	if len(sizes) == 0 {
+		return 0, 0, 0, 0, 0
+	}
+	cp := make([]int64, len(sizes))
+	copy(cp, sizes)
+	sort.Slice(cp, func(i, j int) bool { return cp[i] < cp[j] })
+	var sum int64
+	for _, v := range cp {
+		sum += v
+	}
+	p50 = cp[(len(cp)-1)*50/100]
+	p95 = cp[(len(cp)-1)*95/100]
+	max = cp[len(cp)-1]
+	return len(cp), sum / int64(len(cp)), p50, p95, max
+}
+
+func (s *benchStats) Report(b *testing.B) {
+	b.StopTimer()
+
+	resume := summarizeDurations(s.resume)
+	pause := summarizeDurations(s.pause)
+	resume2 := summarizeDurations(s.resume2)
+	closeDur := summarizeDurations(s.close)
+	total := summarizeDurations(s.total)
+
+	b.Logf("timing summary (testType=%s, n=%d):", s.testType, total.Count)
+	if resume.Count > 0 {
+		b.Logf("  resume1: avg=%s p50=%s p95=%s max=%s", resume.Avg, resume.P50, resume.P95, resume.Max)
+		b.ReportMetric(float64(resume.Avg.Milliseconds()), "resume1_avg_ms")
+		b.ReportMetric(float64(resume.P95.Milliseconds()), "resume1_p95_ms")
+	}
+	if pause.Count > 0 {
+		b.Logf("  pause:   avg=%s p50=%s p95=%s max=%s", pause.Avg, pause.P50, pause.P95, pause.Max)
+		b.ReportMetric(float64(pause.Avg.Milliseconds()), "pause_avg_ms")
+		b.ReportMetric(float64(pause.P95.Milliseconds()), "pause_p95_ms")
+	}
+	if resume2.Count > 0 {
+		b.Logf("  resume2: avg=%s p50=%s p95=%s max=%s", resume2.Avg, resume2.P50, resume2.P95, resume2.Max)
+		b.ReportMetric(float64(resume2.Avg.Milliseconds()), "resume2_avg_ms")
+		b.ReportMetric(float64(resume2.P95.Milliseconds()), "resume2_p95_ms")
+	}
+	if closeDur.Count > 0 {
+		b.Logf("  close:   avg=%s p50=%s p95=%s max=%s", closeDur.Avg, closeDur.P50, closeDur.P95, closeDur.Max)
+		b.ReportMetric(float64(closeDur.Avg.Milliseconds()), "close_avg_ms")
+	}
+	if total.Count > 0 {
+		b.Logf("  total(measured): avg=%s p50=%s p95=%s max=%s", total.Avg, total.P50, total.P95, total.Max)
+		b.ReportMetric(float64(total.Avg.Milliseconds()), "total_avg_ms")
+		b.ReportMetric(float64(total.P95.Milliseconds()), "total_p95_ms")
+	}
+
+	if len(s.snapfileBytes) > 0 || len(s.memfileDiffBytes) > 0 || len(s.rootfsDiffBytes) > 0 {
+		c, avg, p50, p95, max := summarizeBytes(s.snapfileBytes)
+		if c > 0 {
+			b.Logf("  snapfile bytes:   avg=%d p50=%d p95=%d max=%d", avg, p50, p95, max)
+		}
+		c, avg, p50, p95, max = summarizeBytes(s.memfileDiffBytes)
+		if c > 0 {
+			b.Logf("  memdiff bytes:    avg=%d p50=%d p95=%d max=%d", avg, p50, p95, max)
+		}
+		c, avg, p50, p95, max = summarizeBytes(s.rootfsDiffBytes)
+		if c > 0 {
+			b.Logf("  rootfsdiff bytes: avg=%d p50=%d p95=%d max=%d", avg, p50, p95, max)
+		}
+	}
 }

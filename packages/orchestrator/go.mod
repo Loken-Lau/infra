@@ -1,6 +1,6 @@
 module github.com/e2b-dev/infra/packages/orchestrator
 
-go 1.25.4
+go 1.25
 
 tool github.com/oapi-codegen/oapi-codegen/v2/cmd/oapi-codegen
 
