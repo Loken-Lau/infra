@@ -413,7 +413,6 @@ func runBenchmark(ctx context.Context, opts benchmarkOptions) (*BenchmarkResult,
 	startTime := time.Now()
 
 	// Suppress logs
-	cmdutil.SuppressOTELLogs()
 	if !opts.verbose {
 		cmdutil.SuppressNoisyLogs()
 	}
@@ -468,7 +467,7 @@ func runBenchmark(ctx context.Context, opts benchmarkOptions) (*BenchmarkResult,
 	defer cache.Stop()
 
 	sandboxes := sandbox.NewSandboxesMap()
-	factory := sandbox.NewFactory(config.BuilderConfig, networkPool, devicePool, flags)
+	factory := sandbox.NewFactory(config.BuilderConfig, networkPool, devicePool, flags, nil)
 
 	l := logger.NewNopLogger()
 	tcpFw := tcpfirewall.New(l, config.NetworkConfig, sandboxes, noop.NewMeterProvider(), flags)
