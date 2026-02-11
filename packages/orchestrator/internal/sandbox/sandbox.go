@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/google/uuid"
@@ -16,6 +17,7 @@ import (
 	"go.opentelemetry.io/otel/trace"
 	"go.uber.org/zap"
 
+	"github.com/e2b-dev/infra/packages/clickhouse/pkg/hoststats"
 	"github.com/e2b-dev/infra/packages/orchestrator/internal/cfg"
 	"github.com/e2b-dev/infra/packages/orchestrator/internal/sandbox/block"
 	"github.com/e2b-dev/infra/packages/orchestrator/internal/sandbox/build"
@@ -73,6 +75,14 @@ type Config struct {
 	Envd EnvdMetadata
 
 	FirecrackerConfig fc.Config
+
+	VolumeMounts []VolumeMountConfig
+}
+
+type VolumeMountConfig struct {
+	ID   string
+	Path string
+	Type string
 }
 
 type EnvdMetadata struct {
@@ -108,7 +118,25 @@ type Metadata struct {
 	Runtime        RuntimeMetadata
 
 	StartedAt time.Time
-	EndAt     time.Time
+
+	endAtMu sync.RWMutex // protects endAt
+	endAt   time.Time
+}
+
+// GetEndAt returns the sandbox end time in a thread-safe manner.
+func (m *Metadata) GetEndAt() time.Time {
+	m.endAtMu.RLock()
+	defer m.endAtMu.RUnlock()
+
+	return m.endAt
+}
+
+// SetEndAt sets the sandbox end time in a thread-safe manner.
+func (m *Metadata) SetEndAt(t time.Time) {
+	m.endAtMu.Lock()
+	defer m.endAtMu.Unlock()
+
+	m.endAt = t
 }
 
 type Sandbox struct {
@@ -124,6 +152,8 @@ type Sandbox struct {
 	Template template.Template
 
 	Checks *Checks
+
+	hostStatsCollector *HostStatsCollector
 
 	// Deprecated: to be removed in the future
 	// It was used to store the config to allow API restarts
@@ -143,10 +173,11 @@ func (s *Sandbox) LoggerMetadata() sbxlogger.SandboxMetadata {
 }
 
 type Factory struct {
-	config       cfg.BuilderConfig
-	networkPool  *network.Pool
-	devicePool   *nbd.DevicePool
-	featureFlags *featureflags.Client
+	config            cfg.BuilderConfig
+	networkPool       *network.Pool
+	devicePool        *nbd.DevicePool
+	featureFlags      *featureflags.Client
+	hostStatsDelivery hoststats.Delivery
 }
 
 func NewFactory(
@@ -154,12 +185,14 @@ func NewFactory(
 	networkPool *network.Pool,
 	devicePool *nbd.DevicePool,
 	featureFlags *featureflags.Client,
+	hostStatsDelivery hoststats.Delivery,
 ) *Factory {
 	return &Factory{
-		config:       config,
-		networkPool:  networkPool,
-		devicePool:   devicePool,
-		featureFlags: featureFlags,
+		config:            config,
+		networkPool:       networkPool,
+		devicePool:        devicePool,
+		featureFlags:      featureFlags,
+		hostStatsDelivery: hostStatsDelivery,
 	}
 }
 
@@ -296,7 +329,7 @@ func (f *Factory) CreateSandbox(
 		Runtime: runtime,
 
 		StartedAt: time.Now(),
-		EndAt:     time.Now().Add(sandboxTimeout),
+		endAt:     time.Now().Add(sandboxTimeout),
 	}
 
 	sbx := &Sandbox{
@@ -596,7 +629,7 @@ func (f *Factory) ResumeSandbox(
 		Runtime: runtime,
 
 		StartedAt: startedAt,
-		EndAt:     endAt,
+		endAt:     endAt,
 	}
 
 	sbx := &Sandbox{
@@ -637,6 +670,10 @@ func (f *Factory) ResumeSandbox(
 	}
 
 	telemetry.ReportEvent(execCtx, "envd initialized")
+
+	if f.featureFlags.BoolFlag(execCtx, featureflags.HostStatsEnabled) {
+		initializeHostStatsCollector(execCtx, sbx, fcHandle, meta.Template.BuildID, runtime, config, f.hostStatsDelivery)
+	}
 
 	go sbx.Checks.Start(execCtx)
 
@@ -702,6 +739,11 @@ func (s *Sandbox) doStop(ctx context.Context) error {
 	defer span.End()
 
 	var errs []error
+
+	// Stop host stats collector and collect final sample
+	if s.hostStatsCollector != nil {
+		s.hostStatsCollector.Stop(ctx)
+	}
 
 	// Stop the health checks before stopping the sandbox
 	s.Checks.Stop()
@@ -1038,7 +1080,7 @@ func (s *Sandbox) WaitForExit(ctx context.Context) error {
 	ctx, span := tracer.Start(ctx, "sandbox-wait-for-exit")
 	defer span.End()
 
-	timeout := time.Until(s.EndAt)
+	timeout := time.Until(s.GetEndAt())
 
 	select {
 	case <-time.After(timeout):

@@ -5,7 +5,11 @@
     "e2b": "^2.9.0"
   },
   "devDependencies": {
+<<<<<<< HEAD
     "dotenv": "^17.2.3",
     "tsx": "^4.21.0"
+=======
+    "dotenv": "^16.0.3"
+>>>>>>> upstream/main
   }
 }

@@ -51,10 +51,6 @@ variable "otel_collector_resources_cpu_count" {
   type = number
 }
 
-variable "otel_tracing_print" {
-  type = bool
-}
-
 # API
 variable "api_port" {
   type = object({
@@ -62,6 +58,11 @@ variable "api_port" {
     port        = number
     health_path = string
   })
+}
+
+variable "api_grpc_port" {
+  type    = number
+  default = 5009
 }
 
 variable "ingress_port" {

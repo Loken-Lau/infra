@@ -150,6 +150,8 @@ func (s *Server) Create(ctx context.Context, req *orchestrator.SandboxCreateRequ
 				KernelVersion:      req.GetSandbox().GetKernelVersion(),
 				FirecrackerVersion: req.GetSandbox().GetFirecrackerVersion(),
 			},
+
+			VolumeMounts: createVolumeMountModelsFromAPI(req.GetSandbox().GetVolumeMounts()),
 		},
 		sandbox.RuntimeMetadata{
 			TemplateID:  req.GetSandbox().GetTemplateId(),
@@ -234,6 +236,20 @@ func (s *Server) Create(ctx context.Context, req *orchestrator.SandboxCreateRequ
 	}, nil
 }
 
+func createVolumeMountModelsFromAPI(volumeMounts []*orchestrator.SandboxVolumeMount) []sandbox.VolumeMountConfig {
+	results := make([]sandbox.VolumeMountConfig, 0, len(volumeMounts))
+
+	for _, v := range volumeMounts {
+		results = append(results, sandbox.VolumeMountConfig{
+			ID:   v.GetId(),
+			Path: v.GetPath(),
+			Type: v.GetType(),
+		})
+	}
+
+	return results
+}
+
 func (s *Server) Update(ctx context.Context, req *orchestrator.SandboxUpdateRequest) (*emptypb.Empty, error) {
 	ctx, childSpan := tracer.Start(ctx, "sandbox-update")
 	defer childSpan.End()
@@ -250,7 +266,7 @@ func (s *Server) Update(ctx context.Context, req *orchestrator.SandboxUpdateRequ
 		return nil, status.Error(codes.NotFound, "sandbox not found")
 	}
 
-	sbx.EndAt = req.GetEndTime().AsTime()
+	sbx.SetEndAt(req.GetEndTime().AsTime())
 
 	teamID, buildId, eventData := s.prepareSandboxEventData(ctx, sbx)
 	eventData["set_timeout"] = req.GetEndTime().AsTime().Format(time.RFC3339)
@@ -298,7 +314,7 @@ func (s *Server) List(ctx context.Context, _ *emptypb.Empty) (*orchestrator.Sand
 			Config:    sbx.APIStoredConfig,
 			ClientId:  s.info.ClientId,
 			StartTime: timestamppb.New(sbx.StartedAt),
-			EndTime:   timestamppb.New(sbx.EndAt),
+			EndTime:   timestamppb.New(sbx.GetEndAt()),
 		})
 	}
 
