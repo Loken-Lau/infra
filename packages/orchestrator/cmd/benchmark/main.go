@@ -16,7 +16,7 @@
 //   # Benchmark pause (resume + snapshot)
 //   sudo go run ./cmd/benchmark -build ba6aae36-74f7-487a-b6f7-74fd7c94e479 -storage .local-build -iterations 5 -pause
 //
-//   # Benchmark concurrent resume (5 sandboxes in parallel)
+//   # Benchmark concurrent resume (sandboxes in parallel)
 //   sudo go run ./cmd/benchmark -build ba6aae36-74f7-487a-b6f7-74fd7c94e479 -storage .local-build -iterations 5 -concurrent -concurrency 5
 
 package main
