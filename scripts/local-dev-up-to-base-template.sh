@@ -166,22 +166,15 @@ ensure_firecrackers_downloaded() {
 ensure_local_infra() {
   local compose_file="$ROOT_DIR/packages/local-dev/docker-compose.yaml"
   local clickhouse_cfg="$ROOT_DIR/packages/local-dev/clickhouse-config-generated.xml"
-  local warned_sudo=0
 
   run_compose() {
-    if docker compose -f "$compose_file" "$@" >/dev/null 2>&1; then
-      docker compose -f "$compose_file" "$@"
-    elif can_use_sudo_non_interactive; then
-      if [[ "$warned_sudo" -eq 0 ]]; then
-        print "Docker requires sudo in this environment"
-        warned_sudo=1
-      fi
-      sudo docker compose -f "$compose_file" "$@"
-    else
+    if ! can_use_sudo_non_interactive; then
       print "ERROR: cannot run docker compose without sudo, and sudo is unavailable."
       print "Fix by adding your user to docker group or enabling sudo."
       exit 1
     fi
+
+    sudo docker compose -f "$compose_file" "$@"
   }
 
   clickhouse_has_cluster() {

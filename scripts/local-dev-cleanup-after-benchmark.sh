@@ -62,18 +62,12 @@ run_docker_compose() {
   local action="$1"
   shift
 
-  if docker compose -f "$COMPOSE_FILE" "$action" "$@" >/dev/null 2>&1; then
-    docker compose -f "$COMPOSE_FILE" "$action" "$@"
-    return 0
+  if ! can_use_sudo_non_interactive; then
+    print "WARNING: sudo is unavailable; skipping docker compose ${action}."
+    return 1
   fi
 
-  if can_use_sudo_non_interactive; then
-    sudo docker compose -f "$COMPOSE_FILE" "$action" "$@"
-    return 0
-  fi
-
-  print "WARNING: docker compose is not accessible (no docker access and no sudo). Skipping infra cleanup."
-  return 1
+  sudo docker compose -f "$COMPOSE_FILE" "$action" "$@"
 }
 
 is_pid_running() {

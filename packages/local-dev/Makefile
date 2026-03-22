@@ -4,7 +4,7 @@ clickhouse-config-generated.xml: ../clickhouse/local/config.tpl.xml
 
 .PHONY: local-infra
 local-infra: clickhouse-config-generated.xml
-	docker compose --file ./docker-compose.yaml up --abort-on-container-failure
+	sudo docker compose --file ./docker-compose.yaml up --abort-on-container-failure
 
 .PHONY: seed-database
 seed-database:
@@ -12,4 +12,4 @@ seed-database:
 
 .PHONY: stop-infra
 stop-infra:
-	docker compose --file ./docker-compose.yaml down
+	sudo docker compose --file ./docker-compose.yaml down

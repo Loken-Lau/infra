@@ -205,14 +205,25 @@ local-infra:
 .PHONY: benchmark-template-restore
 benchmark-template-restore:
 	@set +e; \
+	./scripts/local-dev-cleanup-after-benchmark.sh --remove-volumes; \
+	pre_cleanup_status=$$?; \
+	./scripts/local-dev-up-to-base-template.sh; \
+	bootstrap_status=$$?; \
+	if [ $$bootstrap_status -ne 0 ]; then \
+		./scripts/local-dev-cleanup-after-benchmark.sh --remove-volumes || true; \
+		exit $$bootstrap_status; \
+	fi; \
 	./benchmark-template-restore.sh; \
 	benchmark_status=$$?; \
-	./scripts/local-dev-cleanup-after-benchmark.sh; \
-	cleanup_status=$$?; \
+	./scripts/local-dev-cleanup-after-benchmark.sh --remove-volumes; \
+	post_cleanup_status=$$?; \
 	if [ $$benchmark_status -ne 0 ]; then \
 		exit $$benchmark_status; \
 	fi; \
-	exit $$cleanup_status
+	if [ $$pre_cleanup_status -ne 0 ]; then \
+		exit $$pre_cleanup_status; \
+	fi; \
+	exit $$post_cleanup_status
 
 .PHONY: local-bootstrap-up-to-base-template
 local-bootstrap-up-to-base-template:
