@@ -132,6 +132,32 @@ ensure_firecrackers_downloaded() {
 ensure_local_infra() {
   local compose_file="$ROOT_DIR/packages/local-dev/docker-compose.yaml"
   local clickhouse_cfg="$ROOT_DIR/packages/local-dev/clickhouse-config-generated.xml"
+  local warned_sudo=0
+
+  run_compose() {
+    if docker compose -f "$compose_file" "$@" >/dev/null 2>&1; then
+      docker compose -f "$compose_file" "$@"
+    elif can_use_sudo_non_interactive; then
+      if [[ "$warned_sudo" -eq 0 ]]; then
+        print "Docker requires sudo in this environment"
+        warned_sudo=1
+      fi
+      sudo docker compose -f "$compose_file" "$@"
+    else
+      print "ERROR: cannot run docker compose without sudo, and sudo is unavailable."
+      print "Fix by adding your user to docker group or enabling sudo."
+      exit 1
+    fi
+  }
+
+  clickhouse_has_cluster() {
+    local out
+    out="$(curl -s --max-time 2 --user clickhouse:clickhouse \
+      "http://127.0.0.1:8123/?query=SELECT%20count()%20FROM%20system.clusters%20WHERE%20cluster%3D%27cluster%27" \
+      2>/dev/null || true)"
+    out="$(echo "$out" | tr -d '[:space:]')"
+    [[ "$out" =~ ^[1-9][0-9]*$ ]]
+  }
 
   # Keep local-dev behavior aligned with `make -C packages/local-dev local-infra`:
   # generate ClickHouse config (contains remote_servers/cluster) before compose up.
@@ -144,20 +170,32 @@ ensure_local_infra() {
   fi
 
   print "Ensuring local infra is running (docker compose up -d)"
-  if docker compose -f "$compose_file" up -d >/dev/null 2>&1; then
-    docker compose -f "$compose_file" up -d
-  elif can_use_sudo_non_interactive; then
-    print "Docker requires sudo in this environment"
-    sudo docker compose -f "$compose_file" up -d
-  else
-    print "ERROR: cannot run docker compose without sudo, and sudo is unavailable."
-    print "Fix by adding your user to docker group or enabling sudo."
-    exit 1
-  fi
+  run_compose up -d
 
   wait_for_port "Postgres" "127.0.0.1" "5432" 120
   wait_for_port "Redis" "127.0.0.1" "6379" 120
   wait_for_port "ClickHouse" "127.0.0.1" "8123" 120
+
+  if ! clickhouse_has_cluster; then
+    print "ClickHouse is up, but cluster metadata is missing. Recreating clickhouse service."
+    run_compose up -d --force-recreate clickhouse
+    wait_for_port "ClickHouse" "127.0.0.1" "8123" 120
+
+    local elapsed=0
+    while (( elapsed < 30 )); do
+      if clickhouse_has_cluster; then
+        break
+      fi
+      sleep 2
+      elapsed=$((elapsed + 2))
+    done
+  fi
+
+  if ! clickhouse_has_cluster; then
+    print "ERROR: ClickHouse cluster 'cluster' is still missing after recreate."
+    print "Hint: inspect $clickhouse_cfg and clickhouse container logs."
+    return 1
+  fi
 }
 
 prepare_local_env() {
