@@ -131,6 +131,17 @@ ensure_firecrackers_downloaded() {
 
 ensure_local_infra() {
   local compose_file="$ROOT_DIR/packages/local-dev/docker-compose.yaml"
+  local clickhouse_cfg="$ROOT_DIR/packages/local-dev/clickhouse-config-generated.xml"
+
+  # Keep local-dev behavior aligned with `make -C packages/local-dev local-infra`:
+  # generate ClickHouse config (contains remote_servers/cluster) before compose up.
+  print "Generating ClickHouse local config"
+  make -C packages/local-dev clickhouse-config-generated.xml
+
+  if ! grep -q "<cluster>" "$clickhouse_cfg" 2>/dev/null; then
+    print "ERROR: ClickHouse config was generated, but cluster definition is missing: $clickhouse_cfg"
+    return 1
+  fi
 
   print "Ensuring local infra is running (docker compose up -d)"
   if docker compose -f "$compose_file" up -d >/dev/null 2>&1; then
