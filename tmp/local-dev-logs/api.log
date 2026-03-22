@@ -888,3 +888,60 @@ github.com/e2b-dev/infra/packages/api/internal/template-manager.(*TemplateManage
 [LaunchDarkly] 2026/03/22 08:04:40 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
 [LaunchDarkly] 2026/03/22 08:04:40 WARN: Will retry posting events after 1.000000 second
 [LaunchDarkly] 2026/03/22 08:04:41 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+2026-03-22T08:04:55.931Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+[LaunchDarkly] 2026/03/22 08:05:10 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+[LaunchDarkly] 2026/03/22 08:05:10 WARN: Will retry posting events after 1.000000 second
+[LaunchDarkly] 2026/03/22 08:05:11 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+2026-03-22T08:05:15.931Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+2026-03-22T08:05:35.932Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+2026-03-22T08:05:35.933Z  [31mERROR[0m  Error getting running builds for periodical sync  {"service": "orchestration-api", "internal": true, "pid": 9221, "error": "ERROR: column t.profile_picture_url does not exist (SQLSTATE 42703)"}
+github.com/e2b-dev/infra/packages/shared/pkg/logger.(*TracedLogger).Error
+	/home/ubuntu/e2b/0322_e2b/infra/packages/shared/pkg/logger/logger.go:142
+github.com/e2b-dev/infra/packages/api/internal/template-manager.(*TemplateManager).BuildsStatusPeriodicalSync
+	/home/ubuntu/e2b/0322_e2b/infra/packages/api/internal/template-manager/template_manager.go:90
+[LaunchDarkly] 2026/03/22 08:05:40 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+[LaunchDarkly] 2026/03/22 08:05:40 WARN: Will retry posting events after 1.000000 second
+[LaunchDarkly] 2026/03/22 08:05:41 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+2026-03-22T08:05:55.932Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+[LaunchDarkly] 2026/03/22 08:06:10 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+[LaunchDarkly] 2026/03/22 08:06:10 WARN: Will retry posting events after 1.000000 second
+[LaunchDarkly] 2026/03/22 08:06:11 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+2026-03-22T08:06:15.932Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+2026-03-22T08:06:35.931Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+2026-03-22T08:06:35.933Z  [31mERROR[0m  Error getting running builds for periodical sync  {"service": "orchestration-api", "internal": true, "pid": 9221, "error": "ERROR: column t.profile_picture_url does not exist (SQLSTATE 42703)"}
+github.com/e2b-dev/infra/packages/shared/pkg/logger.(*TracedLogger).Error
+	/home/ubuntu/e2b/0322_e2b/infra/packages/shared/pkg/logger/logger.go:142
+github.com/e2b-dev/infra/packages/api/internal/template-manager.(*TemplateManager).BuildsStatusPeriodicalSync
+	/home/ubuntu/e2b/0322_e2b/infra/packages/api/internal/template-manager/template_manager.go:90
+[LaunchDarkly] 2026/03/22 08:06:40 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+[LaunchDarkly] 2026/03/22 08:06:40 WARN: Will retry posting events after 1.000000 second
+[LaunchDarkly] 2026/03/22 08:06:41 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+2026-03-22T08:06:55.932Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+[LaunchDarkly] 2026/03/22 08:07:10 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+[LaunchDarkly] 2026/03/22 08:07:10 WARN: Will retry posting events after 1.000000 second
+[LaunchDarkly] 2026/03/22 08:07:11 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+2026-03-22T08:07:15.932Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+2026-03-22T08:07:35.932Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+2026-03-22T08:07:35.933Z  [31mERROR[0m  Error getting running builds for periodical sync  {"service": "orchestration-api", "internal": true, "pid": 9221, "error": "ERROR: column t.profile_picture_url does not exist (SQLSTATE 42703)"}
+github.com/e2b-dev/infra/packages/shared/pkg/logger.(*TracedLogger).Error
+	/home/ubuntu/e2b/0322_e2b/infra/packages/shared/pkg/logger/logger.go:142
+github.com/e2b-dev/infra/packages/api/internal/template-manager.(*TemplateManager).BuildsStatusPeriodicalSync
+	/home/ubuntu/e2b/0322_e2b/infra/packages/api/internal/template-manager/template_manager.go:90
+[LaunchDarkly] 2026/03/22 08:07:40 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+[LaunchDarkly] 2026/03/22 08:07:40 WARN: Will retry posting events after 1.000000 second
+[LaunchDarkly] 2026/03/22 08:07:41 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+2026-03-22T08:07:55.931Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+[LaunchDarkly] 2026/03/22 08:08:10 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+[LaunchDarkly] 2026/03/22 08:08:10 WARN: Will retry posting events after 1.000000 second
+[LaunchDarkly] 2026/03/22 08:08:11 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+2026-03-22T08:08:15.932Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+2026-03-22T08:08:35.931Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
+2026-03-22T08:08:35.933Z  [31mERROR[0m  Error getting running builds for periodical sync  {"service": "orchestration-api", "internal": true, "pid": 9221, "error": "ERROR: column t.profile_picture_url does not exist (SQLSTATE 42703)"}
+github.com/e2b-dev/infra/packages/shared/pkg/logger.(*TracedLogger).Error
+	/home/ubuntu/e2b/0322_e2b/infra/packages/shared/pkg/logger/logger.go:142
+github.com/e2b-dev/infra/packages/api/internal/template-manager.(*TemplateManager).BuildsStatusPeriodicalSync
+	/home/ubuntu/e2b/0322_e2b/infra/packages/api/internal/template-manager/template_manager.go:90
+[LaunchDarkly] 2026/03/22 08:08:40 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+[LaunchDarkly] 2026/03/22 08:08:40 WARN: Will retry posting events after 1.000000 second
+[LaunchDarkly] 2026/03/22 08:08:41 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/bulk": EOF
+2026-03-22T08:08:55.931Z  [34mINFO[0m  API internal status  {"service": "orchestration-api", "internal": true, "pid": 9221, "nodes_count": 1, "nodes": [{"id":"local","sandboxes":0,"status":"ready"}]}
