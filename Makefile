@@ -204,7 +204,15 @@ local-infra:
 
 .PHONY: benchmark-template-restore
 benchmark-template-restore:
-	./benchmark-template-restore.sh
+	@set +e; \
+	./benchmark-template-restore.sh; \
+	benchmark_status=$$?; \
+	./scripts/local-dev-cleanup-after-benchmark.sh; \
+	cleanup_status=$$?; \
+	if [ $$benchmark_status -ne 0 ]; then \
+		exit $$benchmark_status; \
+	fi; \
+	exit $$cleanup_status
 
 .PHONY: local-bootstrap-up-to-base-template
 local-bootstrap-up-to-base-template:

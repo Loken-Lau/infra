@@ -39,6 +39,40 @@ is_port_open() {
   (echo >/dev/tcp/"$host"/"$port") >/dev/null 2>&1
 }
 
+find_pid_by_port() {
+  local port="$1"
+  local pid=""
+
+  if command -v lsof >/dev/null 2>&1; then
+    pid="$(lsof -tiTCP:"$port" -sTCP:LISTEN 2>/dev/null | head -n1 || true)"
+  fi
+
+  if [[ -z "$pid" ]] && command -v ss >/dev/null 2>&1; then
+    pid="$(ss -ltnp "sport = :$port" 2>/dev/null | sed -n 's/.*pid=\([0-9]\+\).*/\1/p' | head -n1 || true)"
+  fi
+
+  echo "$pid"
+}
+
+record_existing_pid_if_running() {
+  local service_name="$1"
+  local port="$2"
+  local pid_file="$3"
+
+  if [[ -f "$pid_file" ]]; then
+    return 0
+  fi
+
+  local pid
+  pid="$(find_pid_by_port "$port")"
+  if [[ -n "$pid" ]]; then
+    echo "$pid" > "$pid_file"
+    print "${service_name} already running, recorded pid=${pid}"
+  else
+    print "${service_name} already running, but pid could not be discovered"
+  fi
+}
+
 wait_for_http_200() {
   local name="$1"
   local url="$2"
@@ -208,7 +242,7 @@ prepare_local_env() {
 
 start_api_if_needed() {
   if is_port_open "127.0.0.1" "3000"; then
-    print "API already running, skipping start"
+    record_existing_pid_if_running "API" "3000" "$PID_DIR/api.pid"
     return 0
   fi
 
@@ -243,7 +277,7 @@ start_api_if_needed() {
 
 start_orchestrator_if_needed() {
   if is_port_open "127.0.0.1" "5008"; then
-    print "Orchestrator already running, skipping start"
+    record_existing_pid_if_running "Orchestrator" "5008" "$PID_DIR/orchestrator.pid"
     return 0
   fi
 
@@ -282,7 +316,7 @@ start_orchestrator_if_needed() {
 
 start_client_proxy_if_needed() {
   if curl -s -o /dev/null -w "%{http_code}" "http://127.0.0.1:3003" 2>/dev/null | grep -q "^200$"; then
-    print "Client-proxy already running, skipping start"
+    record_existing_pid_if_running "Client-proxy" "3003" "$PID_DIR/client-proxy.pid"
     return 0
   fi
 
