@@ -1,0 +1,21 @@
+make[1]: Entering directory '/home/ubuntu/e2b/0322_e2b/infra/packages/client-proxy'
+# Allow for passing commit sha directly for docker builds
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/client-proxy -ldflags "-X=main.commitSHA=7d00dd45a" .
+NODE_ID=vm-2-2-20 ./bin/client-proxy
+2026-03-22T07:59:40.307Z  [34mINFO[0m  Starting client proxy  {"service": "client-proxy", "internal": true, "pid": 10122, "commit": "7d00dd45a", "instance_id": "dfd1ba77-297a-43f8-842f-79c0fc22e9da"}
+[LaunchDarkly] 2026/03/22 07:59:40 INFO: Starting LaunchDarkly client 7.13.0
+[LaunchDarkly] 2026/03/22 07:59:40 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/diagnostic": EOF
+[LaunchDarkly] 2026/03/22 07:59:40 WARN: Will retry posting events after 1.000000 second
+2026-03-22T07:59:40.333Z  [34mINFO[0m  Service status changed  {"service": "client-proxy", "internal": true, "pid": 10122, "status": "healthy"}
+2026-03-22T07:59:40.333Z  [33mWARN[0m  API gRPC address not set; paused sandbox checks disabled  {"service": "client-proxy", "internal": true, "pid": 10122}
+github.com/e2b-dev/infra/packages/shared/pkg/logger.(*TracedLogger).Warn
+	/home/ubuntu/e2b/0322_e2b/infra/packages/shared/pkg/logger/logger.go:138
+main.run
+	/home/ubuntu/e2b/0322_e2b/infra/packages/client-proxy/main.go:147
+main.main
+	/home/ubuntu/e2b/0322_e2b/infra/packages/client-proxy/main.go:301
+runtime.main
+	/home/ubuntu/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.25.4.linux-amd64/src/runtime/proc.go:285
+2026-03-22T07:59:40.333Z  [34mINFO[0m  Health server starting  {"service": "client-proxy", "internal": true, "pid": 10122, "port": 3003}
+2026-03-22T07:59:40.333Z  [34mINFO[0m  Http proxy starting  {"service": "client-proxy", "internal": true, "pid": 10122, "port": 3002}
+[LaunchDarkly] 2026/03/22 07:59:41 WARN: Unexpected error while sending events: Post "https://events.launchdarkly.com/diagnostic": EOF

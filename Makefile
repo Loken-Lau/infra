@@ -1,4 +1,4 @@
-ENV := $(shell cat .last_used_env || echo "not-set")
+ENV := $(shell cat .last_used_env 2>/dev/null || echo "not-set")
 ENV_FILE := .env.${ENV}
 PROVIDER ?= gcp
 
@@ -201,6 +201,14 @@ tidy:
 .PHONY: local-infra
 local-infra:
 	$(MAKE) -C packages/local-dev local-infra
+
+.PHONY: benchmark-template-restore
+benchmark-template-restore:
+	./benchmark-template-restore.sh
+
+.PHONY: local-bootstrap-up-to-base-template
+local-bootstrap-up-to-base-template:
+	./scripts/local-dev-up-to-base-template.sh
 
 .PHONY: gcloud-ingress-dashboard
 gcloud-ingress-dashboard:

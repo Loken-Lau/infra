@@ -32,6 +32,21 @@ These commands will launch each service in the foreground, and will need multipl
 ## Build the base template
 - `make -C packages/shared/scripts local-build-base-template` instructs orchestrator to create the 'base' template
 
+## One-click bootstrap (up to base template)
+- `make local-bootstrap-up-to-base-template` runs the full local bootstrap flow up to base template build
+- Script path: `./scripts/local-dev-up-to-base-template.sh`
+- Behavior:
+  - checks `nbd` + hugepages
+  - downloads kernels/firecrackers only if missing
+  - starts local infra (docker compose)
+  - runs migrations + envd build + seed database
+  - starts api/orchestrator/client-proxy in background if not already running
+  - builds base template
+
+## Benchmark template restore/start
+- `make benchmark-template-restore` benchmark sandbox restore/start latency from template (defaults to `base`)
+- `E2B_API_URL=<api-url> E2B_API_KEY=<api-key> ./benchmark-template-restore.sh -n 50 -t base` run 50 rounds and print p50/p95/p99
+
 # Services
 - grafana: http://localhost:53000
 - postgres: postgres:postgres@127.0.0.1:5432
