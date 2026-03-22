@@ -210,6 +210,10 @@ benchmark-template-restore:
 local-bootstrap-up-to-base-template:
 	./scripts/local-dev-up-to-base-template.sh
 
+.PHONY: local-cleanup-after-benchmark
+local-cleanup-after-benchmark:
+	./scripts/local-dev-cleanup-after-benchmark.sh
+
 .PHONY: gcloud-ingress-dashboard
 gcloud-ingress-dashboard:
 ifndef INSTANCE

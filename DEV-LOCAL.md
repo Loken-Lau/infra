@@ -46,6 +46,8 @@ These commands will launch each service in the foreground, and will need multipl
 ## Benchmark template restore/start
 - `make benchmark-template-restore` benchmark sandbox restore/start latency from template (defaults to `base`)
 - `E2B_API_URL=<api-url> E2B_API_KEY=<api-key> ./benchmark-template-restore.sh -n 50 -t base` run 50 rounds and print p50/p95/p99
+- `make local-cleanup-after-benchmark` stop local benchmark services (api/orchestrator/client-proxy + local infra)
+- `./scripts/local-dev-cleanup-after-benchmark.sh --keep-infra` stop only app processes and keep docker infra running
 
 # Services
 - grafana: http://localhost:53000
