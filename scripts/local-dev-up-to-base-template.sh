@@ -24,6 +24,16 @@ can_use_sudo_non_interactive() {
   sudo -n true >/dev/null 2>&1
 }
 
+maybe_restart_container_runtime_for_ci() {
+  if [[ "${GITHUB_ACTIONS:-}" != "true" ]]; then
+    return 0
+  fi
+
+  need_sudo_or_exit "restarting container runtime in CI"
+  print "CI detected, restarting containerd and docker before docker compose"
+  sudo systemctl restart containerd docker
+}
+
 need_sudo_or_exit() {
   local reason="$1"
   if ! can_use_sudo_non_interactive; then
@@ -174,6 +184,7 @@ ensure_local_infra() {
       exit 1
     fi
 
+    maybe_restart_container_runtime_for_ci
     sudo docker compose -f "$compose_file" "$@"
   }
 
